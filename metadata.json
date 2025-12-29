@@ -1,0 +1,8 @@
+{
+  "name": "SmartKids AI Learning",
+  "description": "An AI-powered primary education app for Grades 1-6 focusing on Math, Chinese, and English through visual gamification.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
