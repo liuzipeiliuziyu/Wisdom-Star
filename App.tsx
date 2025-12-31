@@ -63,7 +63,6 @@ async function decodeAudioData(
 }
 
 const App: React.FC = () => {
-  // 默认从 splash 开始，但会迅速跳转
   const [view, setView] = useState<'splash' | 'dashboard' | 'topicSelect' | 'quiz' | 'result' | 'profile' | 'gradeSelect'>('splash');
   const [profile, setProfile] = useState<UserProfile>(INITIAL_PROFILE);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -84,9 +83,6 @@ const App: React.FC = () => {
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
   const [visualUrl, setVisualUrl] = useState<string | null>(null);
   const [showExitModal, setShowExitModal] = useState(false);
-  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [tempName, setTempName] = useState("");
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -100,7 +96,6 @@ const App: React.FC = () => {
     if (saved) {
       setProfile(JSON.parse(saved));
     }
-    // 自动跳转功能：0.1秒后直接进入主页
     const timer = setTimeout(() => {
       setView('dashboard');
     }, 100);
@@ -115,7 +110,6 @@ const App: React.FC = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
   }, [profile]);
 
-  // 其他逻辑函数 (保持不变)
   const handleError = (e: any) => {
     console.error("API Error:", e);
     if (e.message === 'MISSING_API_KEY') {
@@ -256,13 +250,6 @@ const App: React.FC = () => {
     setView('result');
   };
 
-  const updateProfileName = () => {
-    if (tempName.trim()) {
-      setProfile(p => ({ ...p, name: tempName.trim() }));
-      setIsEditingName(false);
-    }
-  };
-
   const handleImgError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     e.currentTarget.src = FALLBACK_IMAGE;
   };
@@ -282,11 +269,11 @@ const App: React.FC = () => {
   const Dashboard = () => (
     <div className="h-full flex flex-col bg-white">
       <div className="p-6 flex justify-between items-center">
-        <div className="flex items-center gap-3" onClick={() => setView('profile')}>
-          <div className="w-14 h-14 rounded-full border-4 border-yellow-400 p-0.5 overflow-hidden shadow-md cursor-pointer">
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-full border-4 border-yellow-400 p-0.5 overflow-hidden shadow-md">
             <img src={profile.avatarUrl} onError={handleImgError} className="w-full h-full rounded-full" />
           </div>
-          <div className="cursor-pointer">
+          <div>
             <p className="text-[10px] font-bold text-slate-400">探险家</p>
             <h2 className="text-xl font-black text-slate-900">{profile.name}</h2>
           </div>
@@ -328,7 +315,7 @@ const App: React.FC = () => {
         <div className="h-full bg-blue-500 transition-all duration-700" style={{ width: `${((currentIndex + 1) / QUESTIONS_PER_SET) * 100}%` }}></div>
       </div>
       <header className="p-6 flex justify-between items-center mt-4">
-        <button onClick={() => setShowExitModal(true)} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md"><ArrowLeft size={20} /></button>
+        <button onClick={() => setView('dashboard')} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md"><ArrowLeft size={20} /></button>
         <div className="text-center">
           <div className="font-black text-slate-400 text-[10px] uppercase tracking-widest">探险积分</div>
           <div className="text-3xl font-black text-blue-600">+{sessionPoints}</div>
@@ -338,7 +325,13 @@ const App: React.FC = () => {
       <div className="flex-grow px-6 overflow-y-auto space-y-6 pb-48">
         <div className="bg-white rounded-[3rem] p-6 shadow-sm border border-slate-100 space-y-6 relative overflow-hidden">
           <div className="aspect-video bg-slate-50 rounded-[2.2rem] overflow-hidden flex items-center justify-center relative shadow-inner">
-            {visualUrl ? <img src={visualUrl} onError={handleImgError} className="w-full h-full object-cover" /> : <Loader2 className="animate-spin text-slate-200" size={48} />}
+            {isLoadingQuestion ? (
+              <Loader2 className="animate-spin text-blue-500" size={48} />
+            ) : visualUrl ? (
+              <img src={visualUrl} onError={handleImgError} className="w-full h-full object-cover" />
+            ) : (
+              <img src={FALLBACK_IMAGE} className="w-full h-full object-cover opacity-50 grayscale" />
+            )}
           </div>
           {isLoadingQuestion ? (
             <div className="py-12 flex flex-col items-center gap-4">
