@@ -3,7 +3,7 @@ import {
   Trophy, ChevronRight, ArrowLeft, Star, Loader2, Award, AlertCircle,
   Edit2, XCircle, CheckCircle, Calculator, Languages, 
   BookOpen, Camera, Check, ArrowRight, Volume2, Lock, Hash, Play, RefreshCw,
-  AudioLines
+  AudioLines, User, Settings, Save
 } from 'lucide-react';
 import { GeminiService } from './services/geminiService';
 import { Grade, Subject, Question, UserProfile } from './types';
@@ -18,10 +18,11 @@ const DEFAULT_AVATARS = [
   "https://api.dicebear.com/7.x/adventurer/svg?seed=Pabu&backgroundColor=c0aede",
   "https://api.dicebear.com/7.x/adventurer/svg?seed=Momo&backgroundColor=d1d4f9",
   "https://api.dicebear.com/7.x/adventurer/svg?seed=Zuzu&backgroundColor=ffdfbf",
-  "https://api.dicebear.com/7.x/adventurer/svg?seed=Toto&backgroundColor=b6e3f4"
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Toto&backgroundColor=b6e3f4",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Lulu&backgroundColor=ffdfbf",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Coco&backgroundColor=d1d4f9"
 ];
 
-// 默认用户名为 "kim"
 const INITIAL_PROFILE: UserProfile = {
   name: "kim",
   grade: 1,
@@ -63,7 +64,7 @@ async function decodeAudioData(
 }
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'splash' | 'dashboard' | 'topicSelect' | 'quiz' | 'result' | 'profile' | 'gradeSelect'>('splash');
+  const [view, setView] = useState<'splash' | 'dashboard' | 'topicSelect' | 'quiz' | 'result' | 'profile'>('splash');
   const [profile, setProfile] = useState<UserProfile>(INITIAL_PROFILE);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [userTopic, setUserTopic] = useState("");
@@ -82,7 +83,6 @@ const App: React.FC = () => {
   
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
   const [visualUrl, setVisualUrl] = useState<string | null>(null);
-  const [showExitModal, setShowExitModal] = useState(false);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -98,7 +98,7 @@ const App: React.FC = () => {
     }
     const timer = setTimeout(() => {
       setView('dashboard');
-    }, 100);
+    }, 1000);
     
     return () => {
       clearTimeout(timer);
@@ -269,13 +269,20 @@ const App: React.FC = () => {
   const Dashboard = () => (
     <div className="h-full flex flex-col bg-white">
       <div className="p-6 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-full border-4 border-yellow-400 p-0.5 overflow-hidden shadow-md">
+        <div 
+          className="flex items-center gap-3 cursor-pointer group active:scale-95 transition-transform"
+          onClick={() => setView('profile')}
+        >
+          <div className="w-14 h-14 rounded-full border-4 border-yellow-400 p-0.5 overflow-hidden shadow-md group-hover:shadow-lg transition-all">
             <img src={profile.avatarUrl} onError={handleImgError} className="w-full h-full rounded-full" />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-slate-400">探险家</p>
-            <h2 className="text-xl font-black text-slate-900">{profile.name}</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+              {profile.grade}年级 • 探险家
+            </p>
+            <h2 className="text-xl font-black text-slate-900 flex items-center gap-1">
+              {profile.name} <ChevronRight size={14} className="text-slate-300" />
+            </h2>
           </div>
         </div>
         <div className="bg-yellow-400 text-white px-5 py-2.5 rounded-full shadow-lg flex items-center gap-2">
@@ -308,6 +315,81 @@ const App: React.FC = () => {
       </div>
     </div>
   );
+
+  const ProfileView = () => {
+    const [tempName, setTempName] = useState(profile.name);
+    const [tempGrade, setTempGrade] = useState(profile.grade);
+    const [tempAvatar, setTempAvatar] = useState(profile.avatarUrl);
+
+    const handleSave = () => {
+      setProfile(p => ({ ...p, name: tempName, grade: tempGrade, avatarUrl: tempAvatar }));
+      setView('dashboard');
+    };
+
+    return (
+      <div className="h-full bg-[#F8FAFC] flex flex-col">
+        <header className="p-6 flex items-center gap-4">
+          <button onClick={() => setView('dashboard')} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md text-slate-600"><ArrowLeft size={20} /></button>
+          <h2 className="text-2xl font-black text-slate-900">魔法档案</h2>
+        </header>
+        <div className="flex-grow overflow-y-auto px-6 space-y-8 pb-10">
+          <div className="bg-white rounded-[3rem] p-8 shadow-sm space-y-8">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-32 h-32 rounded-full border-8 border-yellow-400 p-1 overflow-hidden shadow-xl">
+                <img src={tempAvatar} onError={handleImgError} className="w-full h-full rounded-full" />
+              </div>
+              <p className="text-xs font-black text-yellow-500 uppercase tracking-widest">选择你的魔法形象</p>
+              <div className="grid grid-cols-4 gap-3 w-full">
+                {DEFAULT_AVATARS.map((url, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => setTempAvatar(url)}
+                    className={`aspect-square rounded-2xl overflow-hidden border-4 transition-all ${tempAvatar === url ? 'border-yellow-400 scale-110 shadow-lg' : 'border-slate-50 opacity-60'}`}
+                  >
+                    <img src={url} className="w-full h-full" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-sm font-black text-slate-400 uppercase tracking-widest px-2">你的名字</label>
+              <div className="relative">
+                <User className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                <input 
+                  type="text" 
+                  value={tempName} 
+                  onChange={(e) => setTempName(e.target.value)}
+                  className="w-full p-6 pl-14 rounded-[2rem] border-2 border-slate-100 focus:border-yellow-400 outline-none font-bold text-lg bg-slate-50 transition-all"
+                  placeholder="请输入名字"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-sm font-black text-slate-400 uppercase tracking-widest px-2">当前年级</label>
+              <div className="grid grid-cols-3 gap-3">
+                {([1, 2, 3, 4, 5, 6] as Grade[]).map((g) => (
+                  <button 
+                    key={g} 
+                    onClick={() => setTempGrade(g)}
+                    className={`py-4 rounded-2xl font-black text-lg transition-all border-2 ${tempGrade === g ? 'bg-slate-900 text-white border-slate-900 shadow-xl' : 'bg-white text-slate-400 border-slate-100'}`}
+                  >
+                    {g} 年级
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="p-6">
+          <button onClick={handleSave} className="w-full py-6 bg-yellow-400 text-white rounded-[2.5rem] font-black text-xl shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all">
+            <Save size={24} /> 保存我的档案
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const QuizView = () => (
     <div className="h-full bg-[#F8FAFC] flex flex-col relative">
@@ -412,6 +494,7 @@ const App: React.FC = () => {
     <div className="app-container shadow-2xl">
       {view === 'splash' && <Splash />}
       {view === 'dashboard' && <Dashboard />}
+      {view === 'profile' && <ProfileView />}
       {view === 'topicSelect' && (
         <div className="h-full bg-[#FFFDF2] flex flex-col p-8 items-center justify-center">
           <div className="w-full max-w-xs space-y-6">
