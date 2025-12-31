@@ -621,4 +621,13 @@ const App: React.FC = () => {
                <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100"><div className="text-[10px] font-black text-slate-400 uppercase mb-1">本次积分</div><div className="text-4xl font-black text-slate-900">+{sessionPoints}</div></div>
                <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100"><div className="text-[10px] font-black text-slate-400 uppercase mb-1">总积分</div><div className="text-4xl font-black text-emerald-500">{profile.points}</div></div>
              </div>
-             <button onClick={() => setView('dashboard')} className="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-xl shadow-
+             <button onClick={() => setView('dashboard')} className="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-xl shadow-2xl">回到首页</button>
+          </div>
+        </div>
+      )}
+      {view === 'profile' && <ProfileView />}
+    </div>
+  );
+};
+
+export default App;
