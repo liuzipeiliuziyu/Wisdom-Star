@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Trophy, ChevronRight, ArrowLeft, Flame, Star, Loader2, Award, AlertCircle,
-  Edit2, XCircle, CheckCircle, PlayCircle, Calculator, Languages, 
+  Trophy, ChevronRight, ArrowLeft, Star, Loader2, Award, AlertCircle,
+  Edit2, XCircle, CheckCircle, Calculator, Languages, 
   BookOpen, Camera, Check, ArrowRight, Volume2, Lock, Hash, Play, RefreshCw,
-  VolumeX, AudioLines, Music, Settings
+  AudioLines
 } from 'lucide-react';
 import { GeminiService } from './services/geminiService';
 import { Grade, Subject, Question, UserProfile } from './types';
@@ -22,8 +21,9 @@ const DEFAULT_AVATARS = [
   "https://api.dicebear.com/7.x/adventurer/svg?seed=Toto&backgroundColor=b6e3f4"
 ];
 
+// 默认用户名为 "kim"
 const INITIAL_PROFILE: UserProfile = {
-  name: "新同学",
+  name: "kim",
   grade: 1,
   streak: 1,
   coins: 0,
@@ -53,7 +53,6 @@ async function decodeAudioData(
   const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-
   for (let channel = 0; channel < numChannels; channel++) {
     const channelData = buffer.getChannelData(channel);
     for (let i = 0; i < frameCount; i++) {
@@ -64,7 +63,7 @@ async function decodeAudioData(
 }
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'splash' | 'landing' | 'nameEntry' | 'gradeSelect' | 'dashboard' | 'topicSelect' | 'quiz' | 'result' | 'profile'>('splash');
+  const [view, setView] = useState<'splash' | 'dashboard' | 'topicSelect' | 'quiz' | 'result' | 'profile' | 'gradeSelect'>('splash');
   const [profile, setProfile] = useState<UserProfile>(INITIAL_PROFILE);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [userTopic, setUserTopic] = useState("");
@@ -97,18 +96,22 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) setProfile(JSON.parse(saved));
-    setTimeout(() => setView('landing'), 1500);
+    if (saved) {
+      setProfile(JSON.parse(saved));
+      // 如果有保存过，直接进主页
+      setTimeout(() => setView('dashboard'), 800);
+    } else {
+      // 如果是第一次进入，由于默认名是 kim，我们直接让他进主页（实现 Auto-jump）
+      setTimeout(() => setView('dashboard'), 800);
+    }
     return () => {
       if (audioSourceRef.current) audioSourceRef.current.stop();
     };
   }, []);
 
   useEffect(() => {
-    if (view !== 'splash' && view !== 'landing') {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-    }
-  }, [profile, view]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+  }, [profile]);
 
   const handleError = (e: any) => {
     console.error("API Error:", e);
@@ -125,25 +128,17 @@ const App: React.FC = () => {
 
   const playQuestionSpeech = async () => {
     if (isSpeaking || !currentQuestion) return;
-    
     setIsSpeaking(true);
     try {
       const base64Audio = await gemini.current.generateSpeech(currentQuestion.text);
-      if (!base64Audio) {
-        setIsSpeaking(false);
-        return;
-      }
-
+      if (!base64Audio) { setIsSpeaking(false); return; }
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       }
-      
       const ctx = audioContextRef.current;
       const audioData = decodeBase64(base64Audio);
       const audioBuffer = await decodeAudioData(audioData, ctx, 24000, 1);
-      
       if (audioSourceRef.current) audioSourceRef.current.stop();
-      
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(ctx.destination);
@@ -151,7 +146,6 @@ const App: React.FC = () => {
       source.start();
       audioSourceRef.current = source;
     } catch (e) {
-      console.error("Speech play failed:", e);
       setIsSpeaking(false);
     }
   };
@@ -164,12 +158,6 @@ const App: React.FC = () => {
     } catch (e) {}
   };
 
-  const startSet = (subject: Subject) => {
-    setSelectedSubject(subject);
-    setUserTopic("");
-    setView('topicSelect');
-  };
-
   const confirmTopicAndStart = async () => {
     setErrorStatus(null);
     setView('quiz');
@@ -177,7 +165,6 @@ const App: React.FC = () => {
     setCurrentIndex(0);
     setSessionPoints(0);
     setQuestionBuffer([]);
-    
     try {
       const firstQ = await gemini.current.generateQuestion(profile.grade, selectedSubject!, userTopic);
       const url = await gemini.current.generateVisual(firstQ.visualPrompt);
@@ -220,7 +207,6 @@ const App: React.FC = () => {
   const nextStep = async () => {
     if (audioSourceRef.current) audioSourceRef.current.stop();
     setIsSpeaking(false);
-    
     if (currentIndex + 1 < QUESTIONS_PER_SET) {
       setCurrentIndex(prev => prev + 1);
       setIsAnswered(false);
@@ -228,7 +214,6 @@ const App: React.FC = () => {
       setUserInputValue("");
       setAiFeedback("");
       setErrorStatus(null);
-      
       if (questionBuffer.length > 0) {
         const nextQ = questionBuffer[0];
         setQuestionBuffer(prev => prev.slice(1));
@@ -287,85 +272,11 @@ const App: React.FC = () => {
 
   const Splash = () => (
     <div className="h-full w-full bg-white flex flex-col items-center justify-center p-10">
-      <div className="w-56 h-56 bg-yellow-400 rounded-[4rem] shadow-2xl flex items-center justify-center mb-12 animate-bounce-soft">
-        <Star size={100} className="text-white fill-current" />
+      <div className="w-48 h-48 bg-yellow-400 rounded-[3.5rem] shadow-2xl flex items-center justify-center mb-10 animate-bounce-soft">
+        <Star size={80} className="text-white fill-current" />
       </div>
-      <h1 className="text-5xl font-black text-slate-900 mb-2 tracking-tight">SmartKids</h1>
-      <p className="text-slate-400 font-bold tracking-[0.3em] uppercase text-xs">AI 赋能 • 智能伴学</p>
-    </div>
-  );
-
-  const NameEntry = () => {
-    const [name, setName] = useState("");
-    return (
-      <div className="h-full bg-white flex flex-col items-center justify-center p-8">
-        <div className="w-full max-w-xs space-y-8">
-          <div className="text-center space-y-4">
-            <div className="w-24 h-24 bg-blue-100 text-blue-600 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-lg"><Edit2 size={48} /></div>
-            <h2 className="text-3xl font-black text-slate-900">很高兴认识你！</h2>
-            <p className="text-slate-500 font-medium">请告诉我你的名字</p>
-          </div>
-          <input 
-            autoFocus type="text" value={name} onChange={(e) => setName(e.target.value)} 
-            placeholder="输入你的名字..." 
-            className="w-full p-6 rounded-[2rem] border-2 border-slate-200 focus:border-blue-400 font-bold text-xl text-center outline-none bg-slate-50" 
-          />
-          <button 
-            onClick={() => { if(name.trim()) { setProfile(p => ({ ...p, name: name.trim() })); setView('gradeSelect'); } }}
-            disabled={!name.trim()}
-            className="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-xl shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
-          >下一步 <ChevronRight /></button>
-        </div>
-      </div>
-    );
-  };
-
-  const GradeSelect = () => (
-    <div className="h-full bg-[#F8FAFC] flex flex-col items-center justify-center p-8">
-      <div className="w-full max-sm:max-w-xs max-w-sm space-y-8">
-        <div className="text-center space-y-4">
-          <div className="w-24 h-24 bg-yellow-100 text-yellow-600 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-lg"><Hash size={48} /></div>
-          <h2 className="text-3xl font-black text-slate-900">你在几年级？</h2>
-          <p className="text-slate-500 font-medium">我们将为你适配难度</p>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((g) => (
-            <button
-              key={g} onClick={() => { setProfile(p => ({ ...p, grade: g as Grade })); setView('dashboard'); }}
-              className={`p-6 rounded-[2.2rem] font-black text-2xl transition-all shadow-sm border-2 ${profile.grade === g ? 'bg-blue-600 text-white border-blue-600 scale-105' : 'bg-white text-slate-700 border-transparent active:scale-95'}`}
-            >{g} 年级</button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const LandingPage = () => (
-    <div className="h-full bg-[#FFFDF2] flex flex-col items-center px-8 relative overflow-hidden">
-      <div className="w-full mt-10 flex justify-between items-center z-10">
-        <div className="bg-white rounded-full px-5 py-2 flex items-center gap-2 shadow-md">
-          <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center text-white"><Award size={18} fill="currentColor" /></div>
-          <span className="font-black text-slate-800">SmartKids</span>
-        </div>
-        <button className="w-11 h-11 bg-white rounded-full flex items-center justify-center shadow-md text-slate-400"><Volume2 size={24} /></button>
-      </div>
-      <div className="mt-8 relative w-full aspect-square max-w-[320px] z-10">
-        <div className="w-full h-full bg-[#3F9A9E] rounded-[3.5rem] overflow-hidden shadow-2xl relative border-8 border-white">
-          <img src="https://img.freepik.com/premium-photo/3d-cartoon-style-character-little-boy-with-backpack-is-jumping-joy-white-numbers-math-symbols-floating-background_924294-8147.jpg?w=826" onError={handleImgError} className="w-full h-full object-cover" />
-        </div>
-      </div>
-      <div className="mt-12 text-center space-y-3 z-10">
-        <h1 className="text-4xl font-black text-slate-900 leading-tight">快乐学习<br /><span className="text-[#FFC700]">天天向上！</span></h1>
-        <p className="text-slate-500 font-bold text-sm px-4 leading-relaxed">专为小学1-6年级设计，让语数英练习变得生动有趣。</p>
-      </div>
-      <button 
-        onClick={() => setView(profile.name === "新同学" ? 'nameEntry' : 'dashboard')}
-        className="mt-10 w-full max-w-[280px] h-20 bg-gradient-to-b from-[#FFEA31] to-[#FFD200] rounded-full shadow-[0_8px_0_#D4A200] active:translate-y-1 transition-all flex items-center justify-center gap-4 z-10"
-      >
-        <div className="w-11 h-11 bg-white/50 rounded-full flex items-center justify-center"><Play size={24} className="text-slate-900 ml-1" fill="currentColor" /></div>
-        <span className="text-2xl font-black text-slate-900">开始探险</span>
-      </button>
-      <button className="mt-8 flex items-center gap-2 text-slate-400 font-black text-sm opacity-50"><Lock size={16} /><span>家长入口</span></button>
+      <h1 className="text-4xl font-black text-slate-900 mb-2">SmartKids</h1>
+      <p className="text-slate-400 font-bold tracking-widest text-xs uppercase">AI Powered Learning</p>
     </div>
   );
 
@@ -373,31 +284,39 @@ const App: React.FC = () => {
     <div className="h-full flex flex-col bg-white">
       <div className="p-6 flex justify-between items-center">
         <div className="flex items-center gap-3" onClick={() => setView('profile')}>
-          <div className="w-14 h-14 rounded-full border-4 border-yellow-400 p-0.5 overflow-hidden shadow-md cursor-pointer"><img src={profile.avatarUrl} onError={handleImgError} className="w-full h-full rounded-full" /></div>
-          <div className="cursor-pointer"><p className="text-[10px] font-bold text-slate-400">探险家</p><h2 className="text-xl font-black text-slate-900">{profile.name}</h2></div>
+          <div className="w-14 h-14 rounded-full border-4 border-yellow-400 p-0.5 overflow-hidden shadow-md cursor-pointer">
+            <img src={profile.avatarUrl} onError={handleImgError} className="w-full h-full rounded-full" />
+          </div>
+          <div className="cursor-pointer">
+            <p className="text-[10px] font-bold text-slate-400">探险家</p>
+            <h2 className="text-xl font-black text-slate-900">{profile.name}</h2>
+          </div>
         </div>
         <div className="bg-yellow-400 text-white px-5 py-2.5 rounded-full shadow-lg flex items-center gap-2">
-           <Trophy size={18} fill="currentColor" /><span className="font-black text-lg">{profile.points} 分</span>
+           <Trophy size={18} fill="currentColor" />
+           <span className="font-black text-lg">{profile.points} 分</span>
         </div>
       </div>
-      <div className="px-8 py-4"><h1 className="text-3xl font-black text-slate-900">今天想挑战<br /><span className="text-yellow-500">什么内容</span> ？</h1></div>
+      <div className="px-8 py-4">
+        <h1 className="text-3xl font-black text-slate-900 leading-tight">你好 {profile.name},<br />今天想挑战<span className="text-yellow-500">什么</span>？</h1>
+      </div>
       <div className="flex-grow overflow-y-auto px-6 space-y-5 pb-10">
         {[
           { id: 'Math', name: '数学', sub: 'Numbers & Logic', img: "https://images.unsplash.com/photo-1596495573826-3946d022b4f2?auto=format&w=200", bg: 'bg-blue-50', btn: 'bg-blue-600' },
           { id: 'Chinese', name: '语文', sub: 'Reading & Poetry', img: "https://images.unsplash.com/photo-1544391496-1ca7c97452c2?auto=format&w=200", bg: 'bg-rose-50', btn: 'bg-rose-500' },
           { id: 'English', name: '英语', sub: 'ABC & Speaking', img: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&w=200", bg: 'bg-emerald-50', btn: 'bg-emerald-500' },
         ].map((s) => (
-          <div key={s.id} onClick={() => startSet(s.id as Subject)} className={`relative ${s.bg} rounded-[2.5rem] p-5 flex items-center gap-4 group cursor-pointer active:scale-95 transition-all`}>
-            <div className="w-24 h-24 bg-white rounded-[1.8rem] border-4 border-white shadow-sm overflow-hidden shrink-0"><img src={s.img} onError={handleImgError} className="w-full h-full object-cover" /></div>
+          <div key={s.id} onClick={() => { setSelectedSubject(s.id as Subject); setUserTopic(""); setView('topicSelect'); }} className={`relative ${s.bg} rounded-[2.5rem] p-5 flex items-center gap-4 group cursor-pointer active:scale-95 transition-all shadow-sm`}>
+            <div className="w-20 h-20 bg-white rounded-2xl border-4 border-white shadow-sm overflow-hidden shrink-0"><img src={s.img} onError={handleImgError} className="w-full h-full object-cover" /></div>
             <div className="flex-grow">
-              <h3 className="text-2xl font-black text-slate-800">{s.name}</h3>
-              <p className="text-[11px] font-bold text-slate-400 uppercase">{s.sub}</p>
-              <div className="bg-white/60 px-3 py-1 rounded-full flex items-center gap-1.5 mt-2 shadow-sm">
-                <CheckCircle size={12} className="text-emerald-500 fill-current" />
-                <span className="text-[11px] font-black text-slate-600">已完成 {profile.setsCompleted[s.id as Subject]} 套</span>
+              <h3 className="text-xl font-black text-slate-800">{s.name}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase">{s.sub}</p>
+              <div className="bg-white/60 px-3 py-1 rounded-full inline-flex items-center gap-1.5 mt-2 shadow-sm">
+                <CheckCircle size={10} className="text-emerald-500 fill-current" />
+                <span className="text-[10px] font-black text-slate-600">已刷 {profile.setsCompleted[s.id as Subject]} 套</span>
               </div>
             </div>
-            <div className={`${s.btn} w-10 h-10 rounded-full flex items-center justify-center text-white absolute right-6 bottom-8 shadow-lg`}><ArrowRight size={20} strokeWidth={3} /></div>
+            <div className={`${s.btn} w-10 h-10 rounded-full flex items-center justify-center text-white absolute right-6 shadow-lg`}><ArrowRight size={20} /></div>
           </div>
         ))}
       </div>
@@ -411,36 +330,32 @@ const App: React.FC = () => {
       </div>
       <header className="p-6 flex justify-between items-center mt-4">
         <button onClick={() => setShowExitModal(true)} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md"><ArrowLeft size={20} /></button>
-        <div className="text-center"><div className="font-black text-slate-400 text-[10px] uppercase tracking-widest">本次探险积分</div><div className="text-3xl font-black text-blue-600">+{sessionPoints}</div></div>
+        <div className="text-center">
+          <div className="font-black text-slate-400 text-[10px] uppercase tracking-widest">探险积分</div>
+          <div className="text-3xl font-black text-blue-600">+{sessionPoints}</div>
+        </div>
         <div className="font-black text-slate-400 text-sm bg-white shadow-sm px-4 py-1 rounded-full">{currentIndex + 1}/{QUESTIONS_PER_SET}</div>
       </header>
       <div className="flex-grow px-6 overflow-y-auto space-y-6 pb-48">
-        <div className="bg-white rounded-[3rem] p-6 shadow-sm border border-slate-100 space-y-6 relative overflow-hidden transition-all duration-500">
+        <div className="bg-white rounded-[3rem] p-6 shadow-sm border border-slate-100 space-y-6 relative overflow-hidden">
           <div className="aspect-video bg-slate-50 rounded-[2.2rem] overflow-hidden flex items-center justify-center relative shadow-inner">
             {visualUrl ? <img src={visualUrl} onError={handleImgError} className="w-full h-full object-cover" /> : <Loader2 className="animate-spin text-slate-200" size={48} />}
           </div>
           {isLoadingQuestion ? (
             <div className="py-12 flex flex-col items-center gap-4">
               <Loader2 className="animate-spin text-blue-500" />
-              <p className="font-black text-slate-400">正在召唤魔法题目...</p>
+              <p className="font-black text-slate-400">正在召唤题目...</p>
             </div>
           ) : (
-            <div className="space-y-6 relative">
-              <h3 className="text-xl font-black text-slate-800 text-center leading-relaxed px-4 transition-all">{currentQuestion?.text}</h3>
-              
-              <div className={`flex justify-center items-end gap-1.5 h-10 transition-all duration-500 ${isSpeaking ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className={`wave-bar w-1.5 rounded-full ${i % 3 === 0 ? 'bg-blue-400' : i % 3 === 1 ? 'bg-rose-400' : 'bg-emerald-400'}`} style={{ height: '8px' }}></div>
-                ))}
-              </div>
-
+            <div className="space-y-6">
+              <h3 className="text-xl font-black text-slate-800 text-center leading-relaxed px-4">{currentQuestion?.text}</h3>
               <div className="flex justify-center">
                 <button 
                   onClick={playQuestionSpeech}
-                  className={`flex items-center gap-2 px-8 py-4 rounded-full font-black transition-all duration-300 shadow-xl ${isSpeaking ? 'bg-blue-600 text-white scale-105 ring-4 ring-blue-100' : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-95'}`}
+                  className={`flex items-center gap-2 px-8 py-4 rounded-full font-black transition-all shadow-xl ${isSpeaking ? 'bg-blue-600 text-white scale-105 ring-4 ring-blue-100' : 'bg-slate-900 text-white active:scale-95'}`}
                 >
                   {isSpeaking ? <AudioLines size={22} className="animate-pulse" /> : <Volume2 size={22} />}
-                  <span className="text-lg">{isSpeaking ? '正在朗读题目...' : '听老师读题'}</span>
+                  <span className="text-lg">{isSpeaking ? '朗读中...' : '听老师读题'}</span>
                 </button>
               </div>
             </div>
@@ -448,26 +363,10 @@ const App: React.FC = () => {
         </div>
 
         {errorStatus && (
-          <div className="bg-rose-50 p-6 rounded-[2.5rem] border-2 border-rose-100 space-y-4 animate-in fade-in slide-in-from-top-4">
+          <div className="bg-rose-50 p-6 rounded-[2.5rem] border-2 border-rose-100 space-y-4">
             <div className="flex items-center gap-3 text-rose-600 font-black text-lg"><AlertCircle size={24} /><span>哎呀，出错了</span></div>
             <p className="text-rose-500 font-bold leading-tight">{errorStatus}</p>
-            {errorStatus.includes("API Key") && (
-              <div className="bg-white p-4 rounded-2xl border border-rose-200">
-                <p className="text-xs text-rose-400 font-medium">提示：请前往 Vercel 项目设置 -> Settings -> Environment Variables，添加 Key 为 <code className="bg-rose-50 px-1 rounded">API_KEY</code> 的变量，然后重新部署。</p>
-              </div>
-            )}
-            {!errorStatus.includes("能量已用完") && !errorStatus.includes("API Key") && (
-              <button 
-                onClick={loadQuestionAtCurrentIndex}
-                className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-rose-200"
-              ><RefreshCw size={20} /> 点击重试</button>
-            )}
-            {errorStatus.includes("API Key") && (
-              <button 
-                onClick={() => setView('dashboard')}
-                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black flex items-center justify-center gap-2"
-              >返回首页</button>
-            )}
+            <button onClick={loadQuestionAtCurrentIndex} className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black shadow-lg">点击重试</button>
           </div>
         )}
 
@@ -486,7 +385,7 @@ const App: React.FC = () => {
                   }
                   return (
                     <button key={idx} onClick={() => handleChoiceSubmit(idx)} disabled={isAnswered} className={`w-full p-5 rounded-[2.2rem] font-black text-lg transition-all flex items-center gap-4 border-2 border-transparent shadow-sm ${style}`}>
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shrink-0 ${isAnswered && isCorrect ? 'bg-white text-emerald-500' : 'border-current opacity-30'}`}>{String.fromCharCode(65 + idx)}</div>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shrink-0 ${isAnswered && isCorrect ? 'bg-white text-emerald-500 border-white' : 'border-current opacity-30'}`}>{String.fromCharCode(65 + idx)}</div>
                       <span className="flex-grow text-left">{opt}</span>
                     </button>
                   );
@@ -495,7 +394,7 @@ const App: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 <textarea value={userInputValue} onChange={(e) => setUserInputValue(e.target.value)} disabled={isAnswered} placeholder="请输入你的答案..." className="w-full h-36 p-6 rounded-[2.5rem] border-2 border-slate-200 focus:border-blue-400 outline-none font-bold text-xl transition-all resize-none bg-white shadow-inner" />
-                {!isAnswered && <button onClick={handleInputSubmit} disabled={isVerifying || !userInputValue.trim()} className="w-full py-5 bg-blue-500 text-white rounded-[2.2rem] font-black text-xl flex items-center justify-center gap-3 active:scale-95 shadow-lg">{isVerifying ? <Loader2 className="animate-spin" /> : "确认提交"}</button>}
+                {!isAnswered && <button onClick={handleInputSubmit} disabled={isVerifying || !userInputValue.trim()} className="w-full py-5 bg-blue-500 text-white rounded-[2.2rem] font-black text-xl flex items-center justify-center gap-3 shadow-lg">{isVerifying ? <Loader2 className="animate-spin" /> : "确认提交"}</button>}
               </div>
             )}
           </div>
@@ -509,7 +408,7 @@ const App: React.FC = () => {
               <div><h4 className={`text-lg font-black ${isLastCorrect ? 'text-emerald-600' : 'text-rose-600'}`}>{isLastCorrect ? '太棒了！' : '加油哦'}</h4>{aiFeedback && <p className="text-[11px] text-slate-400 font-bold">{aiFeedback}</p>}</div>
               <div className="ml-auto font-black text-slate-300 text-xl">+{isLastCorrect ? currentQuestion?.points : 0}</div>
             </div>
-            <div className="bg-slate-50 p-4 rounded-2xl max-h-[120px] overflow-y-auto text-slate-600 text-[13px] leading-relaxed"><span className="font-black text-slate-800">解析：</span>{currentQuestion?.explanation}</div>
+            <div className="bg-slate-50 p-4 rounded-2xl max-h-[100px] overflow-y-auto text-slate-600 text-[13px] leading-relaxed"><span className="font-black text-slate-800">解析：</span>{currentQuestion?.explanation}</div>
             <button onClick={nextStep} className="w-full py-5 bg-slate-900 text-white rounded-[2.2rem] font-black text-xl flex items-center justify-center gap-2">下一题 <ChevronRight size={20} /></button>
           </div>
         </div>
@@ -518,7 +417,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
            <div className="bg-white rounded-[3.5rem] p-10 w-full max-w-sm shadow-2xl space-y-8 text-center">
               <div className="w-24 h-24 bg-rose-50 text-rose-500 rounded-[2.8rem] flex items-center justify-center mx-auto shadow-inner"><AlertCircle size={56} /></div>
-              <div><h3 className="text-3xl font-black text-slate-900">这就结束了吗？</h3><p className="text-slate-500 font-medium mt-3">中途退出将不会记录本套题的完整进度哦</p></div>
+              <div><h3 className="text-3xl font-black text-slate-900">确认退出？</h3><p className="text-slate-500 font-medium mt-3">中途退出将不会记录完整进度哦</p></div>
               <div className="grid grid-cols-1 gap-3">
                  <button onClick={() => setShowExitModal(false)} className="py-5 bg-slate-900 text-white rounded-[2.2rem] font-black text-xl shadow-xl">继续探险</button>
                  <button onClick={() => setView('dashboard')} className="py-4 text-rose-500 font-black">确认退出</button>
@@ -591,9 +490,6 @@ const App: React.FC = () => {
   return (
     <div className="app-container shadow-2xl border-x border-slate-100">
       {view === 'splash' && <Splash />}
-      {view === 'landing' && <LandingPage />}
-      {view === 'nameEntry' && <NameEntry />}
-      {view === 'gradeSelect' && <GradeSelect />}
       {view === 'dashboard' && <Dashboard />}
       {view === 'topicSelect' && (
         <div className="h-full bg-[#FFFDF2] flex flex-col p-8 items-center justify-center">
@@ -603,11 +499,11 @@ const App: React.FC = () => {
                  {selectedSubject === 'Math' ? <Calculator size={48} /> : selectedSubject === 'Chinese' ? <Languages size={48} /> : <BookOpen size={48} />}
                </div>
                <h2 className="text-3xl font-black text-slate-900">探险方向 ✨</h2>
-               <p className="text-slate-500 font-medium">指定今天想挑战的具体话题</p>
+               <p className="text-slate-500 font-medium">指定你想挑战的话题（选填）</p>
             </div>
-            <input type="text" value={userTopic} onChange={(e) => setUserTopic(e.target.value)} placeholder="如：除法、成语、单词 (选填)" className="w-full p-6 rounded-[2rem] border-2 border-slate-200 focus:border-blue-400 font-bold text-lg text-center outline-none bg-white shadow-sm" />
+            <input type="text" value={userTopic} onChange={(e) => setUserTopic(e.target.value)} placeholder="如：乘法、成语、单词" className="w-full p-6 rounded-[2rem] border-2 border-slate-200 focus:border-blue-400 font-bold text-lg text-center outline-none bg-white shadow-sm" />
             <button onClick={confirmTopicAndStart} className="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-xl shadow-xl flex items-center justify-center gap-2">开启挑战 <ChevronRight /></button>
-            <button onClick={() => setView('dashboard')} className="w-full text-slate-400 font-bold text-sm text-center">取消</button>
+            <button onClick={() => setView('dashboard')} className="w-full text-slate-400 font-bold text-sm text-center">返回</button>
           </div>
         </div>
       )}
@@ -616,7 +512,7 @@ const App: React.FC = () => {
         <div className="h-full bg-[#FFFDF2] flex flex-col items-center justify-center p-8 text-center">
           <div className="w-full max-w-sm bg-white rounded-[4rem] shadow-2xl p-12 space-y-8">
              <div className="w-36 h-36 mx-auto rounded-[3.5rem] flex items-center justify-center shadow-xl bg-yellow-400 text-white"><Trophy size={80} /></div>
-             <div className="space-y-2"><h2 className="text-4xl font-black text-slate-900">大获全胜！</h2><p className="text-slate-400 font-bold text-lg">你在本次探险中获得了 {sessionPoints} 分积分</p></div>
+             <div className="space-y-2"><h2 className="text-4xl font-black text-slate-900">太棒了！</h2><p className="text-slate-400 font-bold text-lg">你在本次探险中获得了 {sessionPoints} 积分</p></div>
              <div className="grid grid-cols-2 gap-4">
                <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100"><div className="text-[10px] font-black text-slate-400 uppercase mb-1">本次积分</div><div className="text-4xl font-black text-slate-900">+{sessionPoints}</div></div>
                <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100"><div className="text-[10px] font-black text-slate-400 uppercase mb-1">总积分</div><div className="text-4xl font-black text-emerald-500">{profile.points}</div></div>
@@ -626,6 +522,25 @@ const App: React.FC = () => {
         </div>
       )}
       {view === 'profile' && <ProfileView />}
+      {view === 'gradeSelect' && (
+        <div className="h-full bg-[#F8FAFC] flex flex-col items-center justify-center p-8">
+          <div className="w-full max-w-sm space-y-8">
+            <div className="text-center space-y-4">
+              <div className="w-24 h-24 bg-yellow-100 text-yellow-600 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-lg"><Hash size={48} /></div>
+              <h2 className="text-3xl font-black text-slate-900">修改年级</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((g) => (
+                <button
+                  key={g} onClick={() => { setProfile(p => ({ ...p, grade: g as Grade })); setView('profile'); }}
+                  className={`p-6 rounded-[2.2rem] font-black text-2xl transition-all shadow-sm border-2 ${profile.grade === g ? 'bg-blue-600 text-white border-blue-600 scale-105' : 'bg-white text-slate-700 border-transparent active:scale-95'}`}
+                >{g} 年级</button>
+              ))}
+            </div>
+            <button onClick={() => setView('profile')} className="w-full text-slate-400 font-bold">返回</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
