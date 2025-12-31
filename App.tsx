@@ -4,7 +4,7 @@ import {
   Trophy, ChevronRight, ArrowLeft, Flame, Star, Loader2, Award, AlertCircle,
   Edit2, XCircle, CheckCircle, PlayCircle, Calculator, Languages, 
   BookOpen, Camera, Check, ArrowRight, Volume2, Lock, Hash, Play, RefreshCw,
-  VolumeX, AudioLines, Music
+  VolumeX, AudioLines, Music, Settings
 } from 'lucide-react';
 import { GeminiService } from './services/geminiService';
 import { Grade, Subject, Question, UserProfile } from './types';
@@ -112,12 +112,14 @@ const App: React.FC = () => {
 
   const handleError = (e: any) => {
     console.error("API Error:", e);
-    if (e.message === 'DAILY_QUOTA_EXCEEDED') {
+    if (e.message === 'MISSING_API_KEY') {
+      setErrorStatus("未检测到 API Key。请在 Vercel 环境变量中配置 API_KEY 后重新部署。");
+    } else if (e.message === 'DAILY_QUOTA_EXCEEDED') {
       setErrorStatus("今日能量已用完，请明天再来探险吧！");
     } else if (e.message === 'RATE_LIMIT_EXCEEDED') {
       setErrorStatus("请求太快啦，请稍等10秒后重试。");
     } else {
-      setErrorStatus("魔法信号不稳定，请点击重试。");
+      setErrorStatus("魔法信号不稳定，请检查网络或配置。");
     }
   };
 
@@ -320,7 +322,7 @@ const App: React.FC = () => {
 
   const GradeSelect = () => (
     <div className="h-full bg-[#F8FAFC] flex flex-col items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-8">
+      <div className="w-full max-sm:max-w-xs max-w-sm space-y-8">
         <div className="text-center space-y-4">
           <div className="w-24 h-24 bg-yellow-100 text-yellow-600 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-lg"><Hash size={48} /></div>
           <h2 className="text-3xl font-black text-slate-900">你在几年级？</h2>
@@ -426,7 +428,6 @@ const App: React.FC = () => {
             <div className="space-y-6 relative">
               <h3 className="text-xl font-black text-slate-800 text-center leading-relaxed px-4 transition-all">{currentQuestion?.text}</h3>
               
-              {/* 声波脉冲动画 */}
               <div className={`flex justify-center items-end gap-1.5 h-10 transition-all duration-500 ${isSpeaking ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className={`wave-bar w-1.5 rounded-full ${i % 3 === 0 ? 'bg-blue-400' : i % 3 === 1 ? 'bg-rose-400' : 'bg-emerald-400'}`} style={{ height: '8px' }}></div>
@@ -450,11 +451,22 @@ const App: React.FC = () => {
           <div className="bg-rose-50 p-6 rounded-[2.5rem] border-2 border-rose-100 space-y-4 animate-in fade-in slide-in-from-top-4">
             <div className="flex items-center gap-3 text-rose-600 font-black text-lg"><AlertCircle size={24} /><span>哎呀，出错了</span></div>
             <p className="text-rose-500 font-bold leading-tight">{errorStatus}</p>
-            {!errorStatus.includes("能量已用完") && (
+            {errorStatus.includes("API Key") && (
+              <div className="bg-white p-4 rounded-2xl border border-rose-200">
+                <p className="text-xs text-rose-400 font-medium">提示：请前往 Vercel 项目设置 -> Settings -> Environment Variables，添加 Key 为 <code className="bg-rose-50 px-1 rounded">API_KEY</code> 的变量，然后重新部署。</p>
+              </div>
+            )}
+            {!errorStatus.includes("能量已用完") && !errorStatus.includes("API Key") && (
               <button 
                 onClick={loadQuestionAtCurrentIndex}
                 className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-rose-200"
               ><RefreshCw size={20} /> 点击重试</button>
+            )}
+            {errorStatus.includes("API Key") && (
+              <button 
+                onClick={() => setView('dashboard')}
+                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black flex items-center justify-center gap-2"
+              >返回首页</button>
             )}
           </div>
         )}
@@ -609,13 +621,4 @@ const App: React.FC = () => {
                <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100"><div className="text-[10px] font-black text-slate-400 uppercase mb-1">本次积分</div><div className="text-4xl font-black text-slate-900">+{sessionPoints}</div></div>
                <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100"><div className="text-[10px] font-black text-slate-400 uppercase mb-1">总积分</div><div className="text-4xl font-black text-emerald-500">{profile.points}</div></div>
              </div>
-             <button onClick={() => setView('dashboard')} className="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-xl shadow-2xl">回到首页</button>
-          </div>
-        </div>
-      )}
-      {view === 'profile' && <ProfileView />}
-    </div>
-  );
-};
-
-export default App;
+             <button onClick={() => setView('dashboard')} className="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-xl shadow-

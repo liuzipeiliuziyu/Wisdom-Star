@@ -6,10 +6,15 @@ export class GeminiService {
   private ai: GoogleGenAI;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // 确保 API_KEY 存在，不存在则使用空字符串防止初始化报错
+    const apiKey = process.env.API_KEY || "";
+    this.ai = new GoogleGenAI({ apiKey });
   }
 
   private async callWithRetry<T>(fn: () => Promise<T>): Promise<T> {
+    if (!process.env.API_KEY) {
+      throw new Error("MISSING_API_KEY");
+    }
     try {
       return await fn();
     } catch (error: any) {
@@ -89,6 +94,7 @@ export class GeminiService {
 
   async generateVisual(prompt: string): Promise<string | null> {
     try {
+      if (!process.env.API_KEY) return null;
       const response = await this.ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
@@ -107,6 +113,7 @@ export class GeminiService {
 
   async generateSpeech(text: string): Promise<string | null> {
     try {
+      if (!process.env.API_KEY) return null;
       const response = await this.ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: `请用温柔亲切的语气朗读这道题目：${text}` }] }],
@@ -114,7 +121,7 @@ export class GeminiService {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Kore' }, // Kore sounds friendly
+              prebuiltVoiceConfig: { voiceName: 'Kore' },
             },
           },
         },
