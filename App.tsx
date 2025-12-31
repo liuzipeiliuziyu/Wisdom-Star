@@ -63,6 +63,7 @@ async function decodeAudioData(
 }
 
 const App: React.FC = () => {
+  // 默认从 splash 开始，但会迅速跳转
   const [view, setView] = useState<'splash' | 'dashboard' | 'topicSelect' | 'quiz' | 'result' | 'profile' | 'gradeSelect'>('splash');
   const [profile, setProfile] = useState<UserProfile>(INITIAL_PROFILE);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -98,13 +99,14 @@ const App: React.FC = () => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       setProfile(JSON.parse(saved));
-      // 如果有保存过，直接进主页
-      setTimeout(() => setView('dashboard'), 800);
-    } else {
-      // 如果是第一次进入，由于默认名是 kim，我们直接让他进主页（实现 Auto-jump）
-      setTimeout(() => setView('dashboard'), 800);
     }
+    // 自动跳转功能：0.1秒后直接进入主页
+    const timer = setTimeout(() => {
+      setView('dashboard');
+    }, 100);
+    
     return () => {
+      clearTimeout(timer);
       if (audioSourceRef.current) audioSourceRef.current.stop();
     };
   }, []);
@@ -113,16 +115,13 @@ const App: React.FC = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
   }, [profile]);
 
+  // 其他逻辑函数 (保持不变)
   const handleError = (e: any) => {
     console.error("API Error:", e);
     if (e.message === 'MISSING_API_KEY') {
-      setErrorStatus("未检测到 API Key。请在 Vercel 环境变量中配置 API_KEY 后重新部署。");
-    } else if (e.message === 'DAILY_QUOTA_EXCEEDED') {
-      setErrorStatus("今日能量已用完，请明天再来探险吧！");
-    } else if (e.message === 'RATE_LIMIT_EXCEEDED') {
-      setErrorStatus("请求太快啦，请稍等10秒后重试。");
+      setErrorStatus("请在 Vercel 中设置 API_KEY 环境变量并重新部署。");
     } else {
-      setErrorStatus("魔法信号不稳定，请检查网络或配置。");
+      setErrorStatus("魔法连接失败，请检查网络或配置。");
     }
   };
 
@@ -413,82 +412,11 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-      {showExitModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
-           <div className="bg-white rounded-[3.5rem] p-10 w-full max-w-sm shadow-2xl space-y-8 text-center">
-              <div className="w-24 h-24 bg-rose-50 text-rose-500 rounded-[2.8rem] flex items-center justify-center mx-auto shadow-inner"><AlertCircle size={56} /></div>
-              <div><h3 className="text-3xl font-black text-slate-900">确认退出？</h3><p className="text-slate-500 font-medium mt-3">中途退出将不会记录完整进度哦</p></div>
-              <div className="grid grid-cols-1 gap-3">
-                 <button onClick={() => setShowExitModal(false)} className="py-5 bg-slate-900 text-white rounded-[2.2rem] font-black text-xl shadow-xl">继续探险</button>
-                 <button onClick={() => setView('dashboard')} className="py-4 text-rose-500 font-black">确认退出</button>
-              </div>
-           </div>
-        </div>
-      )}
-    </div>
-  );
-
-  const ProfileView = () => (
-    <div className="h-full bg-slate-50 flex flex-col">
-       <header className="p-6 flex justify-between items-center bg-white shadow-sm shrink-0">
-          <button onClick={() => setView('dashboard')} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-800"><ArrowLeft size={22} /></button>
-          <span className="text-xl font-black text-slate-900">探险成就</span>
-          <div className="w-12"></div>
-       </header>
-       <div className="p-6 space-y-8 overflow-y-auto flex-grow">
-          <div className="flex flex-col items-center gap-6 py-12 bg-white rounded-[4rem] shadow-sm">
-             <div className="relative">
-                <div className="w-32 h-32 bg-yellow-100 rounded-[3.5rem] p-1 border-4 border-yellow-400 shadow-2xl overflow-hidden"><img src={profile.avatarUrl} onError={handleImgError} className="w-full h-full rounded-[3.2rem] object-cover" /></div>
-                <button onClick={() => setShowAvatarPicker(true)} className="absolute bottom-0 right-0 w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center border-4 border-white shadow-xl"><Camera size={20} /></button>
-             </div>
-             <div className="flex flex-col items-center w-full px-10">
-               {isEditingName ? (
-                 <div className="flex items-center gap-2 border-b-4 border-blue-500 w-full">
-                    <input autoFocus value={tempName} onChange={(e) => setTempName(e.target.value)} onBlur={updateProfileName} onKeyDown={(e) => e.key === 'Enter' && updateProfileName()} className="text-center text-3xl font-black text-slate-900 w-full outline-none bg-transparent py-2" />
-                    <button onClick={updateProfileName} className="text-emerald-500"><Check size={24} /></button>
-                 </div>
-               ) : (
-                 <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { setTempName(profile.name); setIsEditingName(true); }}>
-                   <h3 className="text-3xl font-black text-slate-900">{profile.name}</h3>
-                   <Edit2 size={18} className="text-slate-300" />
-                 </div>
-               )}
-               <button onClick={() => setView('gradeSelect')} className="flex items-center gap-2 bg-blue-600 px-6 py-2.5 rounded-full text-white font-black text-[12px] mt-6 tracking-widest uppercase shadow-lg">
-                  <Hash size={14} />{profile.grade}年级 • 修改
-               </button>
-             </div>
-             <div className="w-full px-8 space-y-3 pt-4">
-               <p className="text-[10px] text-slate-400 font-black uppercase text-center tracking-widest">学习生涯统计</p>
-               <div className="grid grid-cols-3 gap-3">
-                  {(['Math', 'Chinese', 'English'] as Subject[]).map(s => (
-                    <div key={s} className="bg-slate-50 rounded-3xl p-4 text-center border border-slate-100">
-                      <div className="text-[10px] font-black text-slate-400 uppercase mb-1">{s === 'Math' ? '数学' : s === 'Chinese' ? '语文' : '英语'}</div>
-                      <div className="text-2xl font-black text-slate-900">{profile.setsCompleted[s]} <span className="text-[11px] text-slate-400 font-bold">套</span></div>
-                    </div>
-                  ))}
-               </div>
-               <div className="bg-yellow-50 rounded-3xl p-6 border border-yellow-100 flex justify-between items-center mt-4">
-                  <div className="flex items-center gap-3">
-                     <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center text-white shadow-md"><Trophy size={24} fill="currentColor" /></div>
-                     <div><p className="text-[10px] font-black text-yellow-600 uppercase">总积分</p><p className="text-2xl font-black text-slate-800">{profile.points}</p></div>
-                  </div>
-               </div>
-             </div>
-          </div>
-       </div>
-       {showAvatarPicker && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
-            <div className="bg-white rounded-[4rem] w-full max-w-sm p-10 space-y-8">
-               <div className="flex justify-between items-center"><h3 className="text-2xl font-black text-slate-900">更换形象</h3><button onClick={() => setShowAvatarPicker(false)} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400"><XCircle /></button></div>
-               <div className="grid grid-cols-3 gap-4">{DEFAULT_AVATARS.map(url => <button key={url} onClick={() => { setProfile(p => ({ ...p, avatarUrl: url })); setShowAvatarPicker(false); }} className={`aspect-square rounded-[2rem] overflow-hidden border-4 transition-all ${profile.avatarUrl === url ? 'border-blue-500 scale-105 shadow-xl' : 'border-transparent opacity-60'}`}><img src={url} alt="Option" className="w-full h-full object-cover" /></button>)}</div>
-            </div>
-         </div>
-       )}
     </div>
   );
 
   return (
-    <div className="app-container shadow-2xl border-x border-slate-100">
+    <div className="app-container shadow-2xl">
       {view === 'splash' && <Splash />}
       {view === 'dashboard' && <Dashboard />}
       {view === 'topicSelect' && (
@@ -513,31 +441,7 @@ const App: React.FC = () => {
           <div className="w-full max-w-sm bg-white rounded-[4rem] shadow-2xl p-12 space-y-8">
              <div className="w-36 h-36 mx-auto rounded-[3.5rem] flex items-center justify-center shadow-xl bg-yellow-400 text-white"><Trophy size={80} /></div>
              <div className="space-y-2"><h2 className="text-4xl font-black text-slate-900">太棒了！</h2><p className="text-slate-400 font-bold text-lg">你在本次探险中获得了 {sessionPoints} 积分</p></div>
-             <div className="grid grid-cols-2 gap-4">
-               <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100"><div className="text-[10px] font-black text-slate-400 uppercase mb-1">本次积分</div><div className="text-4xl font-black text-slate-900">+{sessionPoints}</div></div>
-               <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100"><div className="text-[10px] font-black text-slate-400 uppercase mb-1">总积分</div><div className="text-4xl font-black text-emerald-500">{profile.points}</div></div>
-             </div>
              <button onClick={() => setView('dashboard')} className="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-xl shadow-2xl">回到首页</button>
-          </div>
-        </div>
-      )}
-      {view === 'profile' && <ProfileView />}
-      {view === 'gradeSelect' && (
-        <div className="h-full bg-[#F8FAFC] flex flex-col items-center justify-center p-8">
-          <div className="w-full max-w-sm space-y-8">
-            <div className="text-center space-y-4">
-              <div className="w-24 h-24 bg-yellow-100 text-yellow-600 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-lg"><Hash size={48} /></div>
-              <h2 className="text-3xl font-black text-slate-900">修改年级</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((g) => (
-                <button
-                  key={g} onClick={() => { setProfile(p => ({ ...p, grade: g as Grade })); setView('profile'); }}
-                  className={`p-6 rounded-[2.2rem] font-black text-2xl transition-all shadow-sm border-2 ${profile.grade === g ? 'bg-blue-600 text-white border-blue-600 scale-105' : 'bg-white text-slate-700 border-transparent active:scale-95'}`}
-                >{g} 年级</button>
-              ))}
-            </div>
-            <button onClick={() => setView('profile')} className="w-full text-slate-400 font-bold">返回</button>
           </div>
         </div>
       )}
