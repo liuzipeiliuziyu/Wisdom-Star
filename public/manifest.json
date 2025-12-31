@@ -1,0 +1,18 @@
+
+{
+  "short_name": "SmartKids",
+  "name": "SmartKids 智能学习",
+  "icons": [
+    {
+      "src": "https://api.dicebear.com/7.x/shapes/svg?seed=SmartKids&backgroundColor=ffc700",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#ffffff",
+  "description": "AI 赋能的小学智能辅助学习应用"
+}
