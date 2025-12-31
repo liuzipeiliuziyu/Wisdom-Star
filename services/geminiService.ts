@@ -1,18 +1,17 @@
-
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { Question, Grade, Subject, QuestionType } from "../types";
+import { Question, Grade, Subject } from "../types";
 
 export class GeminiService {
   private ai: GoogleGenAI;
 
   constructor() {
-    // 确保 API_KEY 存在，不存在则使用空字符串防止初始化报错
-    const apiKey = process.env.API_KEY || "";
+    // 使用 process.env.API_KEY，Node 类型定义已在 package.json 补全
+    const apiKey = (process.env as any).API_KEY || "";
     this.ai = new GoogleGenAI({ apiKey });
   }
 
   private async callWithRetry<T>(fn: () => Promise<T>): Promise<T> {
-    if (!process.env.API_KEY) {
+    if (!(process.env as any).API_KEY) {
       throw new Error("MISSING_API_KEY");
     }
     try {
@@ -65,7 +64,8 @@ export class GeminiService {
         }
       });
 
-      const data = JSON.parse(response.text);
+      const text = response.text || "{}";
+      const data = JSON.parse(text);
       return { ...data, id: Math.random().toString(36).substr(2, 9) };
     });
   }
@@ -88,13 +88,14 @@ export class GeminiService {
           }
         }
       });
-      return JSON.parse(response.text);
+      const text = response.text || "{}";
+      return JSON.parse(text);
     });
   }
 
   async generateVisual(prompt: string): Promise<string | null> {
     try {
-      if (!process.env.API_KEY) return null;
+      if (!(process.env as any).API_KEY) return null;
       const response = await this.ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
@@ -113,7 +114,7 @@ export class GeminiService {
 
   async generateSpeech(text: string): Promise<string | null> {
     try {
-      if (!process.env.API_KEY) return null;
+      if (!(process.env as any).API_KEY) return null;
       const response = await this.ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: `请用温柔亲切的语气朗读这道题目：${text}` }] }],
